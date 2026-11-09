@@ -1,3 +1,5 @@
+package com.scc;
+
 import com.scc.dao.UserDao;
 
 import java.util.Scanner;

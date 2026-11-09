@@ -1,18 +1,25 @@
-package com.scc;
+package com.scc.ui;
 
+import com.scc.dao.ActivityLogDao;
+import com.scc.dao.DatabaseInitializer;
+import com.scc.dao.ReservationDao;
 import com.scc.dao.UserDao;
 import com.scc.model.User;
-import com.scc.ui.AdminMenu;
-import com.scc.ui.ReceptionistMenu;
-import com.scc.ui.UserMenu;
 
 import java.util.Scanner;
 
 public class Authentication {
     private static final Scanner sc = new Scanner(System.in);
-    private static final UserDao userDao = new UserDao();
+    private static UserDao userDao;
+    private static ActivityLogDao activityLogDao;
+    private static ReservationDao reservationDao;
 
     public static void main(String[] args) {
+        DatabaseInitializer.initializeDatabase();
+        userDao = new UserDao();
+        activityLogDao = new ActivityLogDao();
+        reservationDao = new ReservationDao();
+
         boolean running = true;
 
         while (running) {
@@ -35,7 +42,7 @@ public class Authentication {
 
             switch (choice) {
                 case 1:
-                    handleLogin();
+                    login();
                     break;
                 case 2:
                     System.out.print("Enter a new username: ");
@@ -80,7 +87,7 @@ public class Authentication {
         }
     }
 
-    private static void handleLogin() {
+    private static void login() {
         System.out.print("Enter username: ");
         String username = sc.nextLine().trim();
         System.out.print("Enter password: ");
@@ -89,15 +96,23 @@ public class Authentication {
         User user = userDao.login(username, password);
 
         if (user != null) {
+            activityLogDao.logAction(user.id(), "USER_LOGIN",
+                    "User " + user.username() + " (ID: " + user.id() + ") logged in.");
             System.out.println("Login successful! Welcome, " + user.username() + " | ROLE: " + user.roles());
             switch (user.roles().toUpperCase()) {
-                case "ADMIN" -> new AdminMenu(userDao, sc).display(user);
-                case "RECEPTIONIST", "STAFF" -> new ReceptionistMenu(userDao, sc).display(user);
+                case "ADMIN" -> new AdminMenu(userDao, activityLogDao, sc).display(user);
+                case "RECEPTIONIST", "STAFF" -> new ReceptionistMenu(userDao, reservationDao, sc).display(user);
                 case "CUSTOMER", "USER" -> new UserMenu(userDao, sc).display(user);
                 default -> System.out.println("Unknown role. Access denied.");
             }
+            logout(user);
         } else {
             System.out.println("Login failed. Invalid username, password, or account pending approval.");
         }
+    }
+
+    private static void logout(User user) {
+        activityLogDao.logAction(user.id(), "USER_LOGOUT",
+                "User " + user.username() + " (ID: " + user.id() + ") logged out.");
     }
 }
